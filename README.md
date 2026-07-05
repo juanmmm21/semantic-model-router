@@ -1,96 +1,96 @@
 # Semantic Model Router
 
-Enrutador semantico inteligente que analiza en tiempo real la complejidad logica y los requisitos de las consultas del usuario para derivarlas de forma dinamica al modelo de lenguaje (LLM) mas eficiente en relacion coste, latencia y precision.
+Intelligent semantic router that analyzes the logical complexity and requirements of user queries in real time to dynamically route them to the most efficient language model (LLM) in terms of cost, latency, and accuracy.
 
-Este componente reduce sustancialmente el coste operativo total de sistemas de produccion RAG (hasta un 70% de ahorro financiero) al derivar peticiones sencillas de chat o saludos a modelos ligeros y economicos (como `gpt-4o-mini`), reservando los modelos avanzados de alta capacidad intelectual (como `claude-3-5-sonnet`) para la resolucion de algoritmos, refactorizacion de codigo o razonamientos logico-deductivos complejos.
+This component substantially reduces the total operating cost of production RAG systems (up to 70% financial savings) by routing simple chat requests or greetings to lightweight, economical models (such as `gpt-4o-mini`), reserving advanced high-intelligence models (such as `claude-3-5-sonnet`) for algorithm solving, code refactoring, or complex logical-deductive reasoning.
 
-## Arquitectura y Algoritmos de Decision
+## Architecture and Decision Algorithms
 
-El enrutador procesa cada consulta mediante un arbol de decision jerarquico de tres etapas, priorizando la ejecucion local, la baja latencia y la robustez offline.
+The router processes each query through a three-stage hierarchical decision tree, prioritizing local execution, low latency, and offline robustness.
 
 ```mermaid
 graph TD
-    Query[Consulta del Usuario] --> LengthCheck{¿Longitud < 25 chars?}
+    Query[User Query] --> LengthCheck{Length < 25 chars?}
     
-    LengthCheck -->|Si| Mini[Asignar: gpt-4o-mini <br/> Complejidad: low]
-    LengthCheck -->|No| RegexCheck{¿Coincide Regex de Codigo/Matematicas?}
+    LengthCheck -->|Yes| Mini[Assign: gpt-4o-mini <br/> Complexity: low]
+    LengthCheck -->|No| RegexCheck{Matches Code/Math Regex?}
     
-    RegexCheck -->|Si| CodeNegativeCheck{¿Hay restriccion negativa explicita?}
-    CodeNegativeCheck -->|Si| JaccardCheck[Calcular Similitud de Tri-gramas Jaccard]
-    CodeNegativeCheck -->|No| Sonnet[Asignar: claude-3-5-sonnet <br/> Complejidad: high]
+    RegexCheck -->|Yes| CodeNegativeCheck{Explicit negative restriction?}
+    CodeNegativeCheck -->|Yes| JaccardCheck[Compute Jaccard Tri-gram Similarity]
+    CodeNegativeCheck -->|No| Sonnet[Assign: claude-3-5-sonnet <br/> Complexity: high]
     
     RegexCheck -->|No| JaccardCheck
     
-    subgraph Heuristicas Locales Offline
-        JaccardCheck --> JaccardCompare{¿Max Sim > 0.25?}
-        JaccardCompare -->|Si| MaxAnchor{¿Mayor afinidad a Coding o Reasoning?}
+    subgraph Local Offline Heuristics
+        JaccardCheck --> JaccardCompare{Max Sim > 0.25?}
+        JaccardCompare -->|Yes| MaxAnchor{Higher affinity to Coding or Reasoning?}
         MaxAnchor -->|Coding| Sonnet
-        MaxAnchor -->|Reasoning| GPT4[Asignar: gpt-4o <br/> Complejidad: medium]
+        MaxAnchor -->|Reasoning| GPT4[Assign: gpt-4o <br/> Complexity: medium]
         JaccardCompare -->|No| GPT4
     end
     
-    subgraph Ecosistema
-        EmbeddingTrainer[contrastive-embedding-trainer] -.->|Si esta disponible| RouterEmbeddings[Similitud Vectorial Local]
+    subgraph Ecosystem
+        EmbeddingTrainer[contrastive-embedding-trainer] -.->|If available| RouterEmbeddings[Local Vector Similarity]
         RouterEmbeddings -.-> GPT4
     end
 ```
 
-### 1. Fase 1: Analisis Estructural y Regex Condicional
+### 1. Stage 1: Structural Analysis and Conditional Regex
 
-El enrutador ejecuta primero validaciones lexicas instantaneas que no consumen recursos de procesamiento pesado:
+The router first runs instant lexical checks that don't consume heavy processing resources:
 
-*   **Validacion de Longitud:** Si la consulta limpia tiene un tamano inferior a `25` caracteres (por ejemplo, saludos como "Hola", confirmaciones como "Si, gracias"), se clasifica de inmediato con complejidad `low` y se enruta a `gpt-4o-mini`.
-*   **Inspeccion de Palabras Clave (Regex):** Se buscan patrones especificos asociados a programacion (`def`, `class`, `fn`, `struct`, etc.) o razonamiento matematico formal (`algoritmo`, `teorema`, `calculo`).
-*   **Control de Negaciones:** Para evitar falsos positivos cuando el usuario pide explicitamente *no* codificar (ejemplo: "explicame como funciona RAG sin meter codigo"), se evalua una expresion regular de exclusion negativa:
+*   **Length Validation:** If the cleaned query is shorter than `25` characters (for example, greetings like "Hi", confirmations like "Yes, thanks"), it is immediately classified as `low` complexity and routed to `gpt-4o-mini`.
+*   **Keyword Inspection (Regex):** Specific patterns associated with programming (`def`, `class`, `fn`, `struct`, etc.) or formal mathematical reasoning (`algorithm`, `theorem`, `calculus`) are searched for.
+*   **Negation Control:** To avoid false positives when the user explicitly asks *not* to include code (example: "explain how RAG works without any code"), a negative exclusion regular expression is evaluated:
     $$\text{PII\_Neg} = \text{re.search}(\text{"}\setminus b(sin|no|evitar|sin\ usar|sin\ meter)\setminus s+(codigo|programar|programacion|desarrollo)\setminus b\text{"})$$
-    Si esta expresion coincide, se anula la derivacion directa a Claude y se continua con el analisis de la siguiente fase.
+    If this expression matches, the direct routing to Claude is canceled and analysis continues to the next stage.
 
-### 2. Fase 2: Similitud de N-Gramas Jaccard (Tri-gramas)
+### 2. Stage 2: Jaccard N-Gram Similarity (Tri-grams)
 
-Cuando no hay una coincidencia lexica concluyente, el enrutador aplica una heuristica offline basada en n-gramas de caracteres de nivel 3 (tri-gramas). Este metodo mide el solapamiento entre los tri-gramas del prompt y un conjunto de anclas predefinidas que representan intenciones de alta complejidad:
+When there is no conclusive lexical match, the router applies an offline heuristic based on level-3 character n-grams (tri-grams). This method measures the overlap between the prompt's tri-grams and a set of predefined anchors representing high-complexity intents:
 
-*   **Tri-gramas:** Un texto se descompone en secuencias continuas de 3 caracteres eliminando espacios y normalizando a minusculas. Para el texto $T$, definimos su conjunto de tri-gramas como $G(T)$.
-*   **Similitud de Jaccard:** Dadas la consulta del usuario $Q$ y un texto de anclaje $A$, la similitud se define como:
+*   **Tri-grams:** A text is broken down into continuous sequences of 3 characters, removing spaces and normalizing to lowercase. For text $T$, we define its set of tri-grams as $G(T)$.
+*   **Jaccard Similarity:** Given the user query $Q$ and an anchor text $A$, similarity is defined as:
     $$J(Q, A) = \frac{|G(Q) \cap G(A)|}{|G(Q) \cup G(A)|}$$
 
-El sistema evalua la similitud contra dos intenciones guia:
-1.  *Coding Anchor:* `"Escribe un script de programacion para optimizar la funcion o el backend"`
-2.  *Reasoning Anchor:* `"Realiza un analisis logico deductivo paso a paso de los datos financieros"`
+The system evaluates similarity against two guiding intents:
+1.  *Coding Anchor:* `"Write a programming script to optimize the function or backend"`
+2.  *Reasoning Anchor:* `"Perform a step-by-step logical deductive analysis of the financial data"`
 
-Si $\max(J(Q, \text{Coding}), J(Q, \text{Reasoning})) > 0.25$, se selecciona el modelo con el perfil de capacidad intelectual adecuado para el ancla dominante (`claude-3-5-sonnet` o `gpt-4o`). En caso contrario, se enruta por defecto a `gpt-4o` para un procesamiento de proposito general.
+If $\max(J(Q, \text{Coding}), J(Q, \text{Reasoning})) > 0.25$, the model with the intelligence profile suited to the dominant anchor is selected (`claude-3-5-sonnet` or `gpt-4o`). Otherwise, it defaults to `gpt-4o` for general-purpose processing.
 
-### 3. Fase 3: Integracion con contrastive-embedding-trainer
+### 3. Stage 3: Integration with contrastive-embedding-trainer
 
-El constructor del enrutador intenta realizar una importacion dinamica del proyecto hermano `contrastive-embedding-trainer` del espacio de trabajo. De encontrarlo disponible, el enrutador puede computar de forma local embeddings de la consulta y mapear la similitud de coseno frente a plantillas indexadas previamente en lugar de depender de la comparacion de tri-gramas, mejorando significativamente la precision de enrutamiento semantico bajo cargas de trabajo complejas.
+The router's constructor attempts a dynamic import of the sibling `contrastive-embedding-trainer` project from the workspace. If found available, the router can locally compute query embeddings and map cosine similarity against previously indexed templates instead of relying on tri-gram comparison, significantly improving semantic routing accuracy under complex workloads.
 
-## Modelos y Perfiles de Coste
+## Models and Cost Profiles
 
-El enrutador gestiona el presupuesto en funcion del coste de los tokens de entrada y salida ($Cost = \alpha \cdot \text{Cost}_{\text{input}} + (1.0 - \alpha) \cdot \text{Cost}_{\text{output}}$). Por defecto se utiliza una relacion estandar de consumo de tokens en tareas RAG ($\alpha = 0.75$):
+The router manages the budget based on the cost of input and output tokens ($Cost = \alpha \cdot \text{Cost}_{\text{input}} + (1.0 - \alpha) \cdot \text{Cost}_{\text{output}}$). By default, a standard token consumption ratio for RAG tasks is used ($\alpha = 0.75$):
 
-| Modelo | Capacidad Intel. (1-10) | Latencia | Coste Input / 1K Tokens | Coste Output / 1K Tokens | Coste Ponderado P.D. |
+| Model | Intel. Capacity (1-10) | Latency | Input Cost / 1K Tokens | Output Cost / 1K Tokens | Weighted Cost W.A. |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **gpt-4o-mini** | 4 | Baja | \$0.00015 | \$0.00060 | \$0.0002625 |
-| **gpt-4o** | 8 | Media | \$0.00500 | \$0.01500 | \$0.0075000 |
-| **claude-3-5-sonnet** | 10 | Alta | \$0.00300 | \$0.01500 | \$0.0060000 |
+| **gpt-4o-mini** | 4 | Low | \$0.00015 | \$0.00060 | \$0.0002625 |
+| **gpt-4o** | 8 | Medium | \$0.00500 | \$0.01500 | \$0.0075000 |
+| **claude-3-5-sonnet** | 10 | High | \$0.00300 | \$0.01500 | \$0.0060000 |
 
-## Conexión con el Ecosistema
+## Ecosystem Connection
 
-Este enrutador se integra en la infraestructura de la siguiente forma:
-1.  **contrastive-embedding-trainer:** Aporta el modelo local Bi-Encoder para codificar consultas semanticas y buscar la intencion en espacios de alta dimensionalidad.
-2.  **llm-inference-server:** Una vez que el router decide que modelo usar, las llamadas a modelos locales se derivan al servidor de inferencia local para su procesamiento.
-3.  **orchestra-agents:** Actua como la compuerta de entrada para las peticiones de los agentes, permitiendo que la generacion de razonamientos de los agentes intermedios no gaste cuotas innecesarias de modelos propietarios avanzados.
+This router integrates into the infrastructure as follows:
+1.  **contrastive-embedding-trainer:** Provides the local Bi-Encoder model to encode semantic queries and search for intent in high-dimensional spaces.
+2.  **llm-inference-server:** Once the router decides which model to use, calls to local models are routed to the local inference server for processing.
+3.  **orchestra-agents:** Acts as the entry gate for agent requests, allowing intermediate agents' reasoning generation to avoid wasting unnecessary quotas on advanced proprietary models.
 
-## Estructura del Proyecto
+## Project Structure
 
-*   `router.py`: Implementacion de la clase `SemanticModelRouter` y los esquemas de datos Pydantic para decisiones de enrutamiento (`RoutingDecision`).
-*   `test_router.py`: Pruebas unitarias que validan la clasificacion de complejidad (low, medium, high), el calculo de similitud de Jaccard y las exclusiones por regex.
-*   `example.py`: Demostracion interactiva de simulacion de enrutamiento sobre multiples prompts de prueba, calculando y mostrando el porcentaje exacto de ahorro financiero proyectado.
+*   `router.py`: Implementation of the `SemanticModelRouter` class and the Pydantic data schemas for routing decisions (`RoutingDecision`).
+*   `test_router.py`: Unit tests validating complexity classification (low, medium, high), Jaccard similarity calculation, and regex exclusions.
+*   `example.py`: Interactive demonstration of routing simulation over multiple test prompts, calculating and displaying the exact projected financial savings percentage.
 
-## Instalacion y Ejecucion
+## Installation and Execution
 
-### 1. Configurar el Entorno e Instalar Dependencias
+### 1. Set Up the Environment and Install Dependencies
 
-Asegurese de inicializar y activar el entorno virtual local antes de proceder con el uso del enrutador:
+Make sure to initialize and activate the local virtual environment before proceeding to use the router:
 
 ```bash
 python3 -m venv .venv
@@ -98,16 +98,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Ejecutar Pruebas Unitarias
+### 2. Run Unit Tests
 
 ```bash
 .venv/bin/python -m unittest test_router.py
 ```
 
-### 3. Ejecutar la Demostracion de Ahorro Financiero
+### 3. Run the Financial Savings Demonstration
 
 ```bash
 .venv/bin/python example.py
 ```
 
-El script evaluara una serie de consultas predefinidas (de codigo, preguntas sencillas de conversacion, formulas matematicas) e imprimira por consola el modelo seleccionado para cada una, la justificacion del enrutamiento y una comparativa de costes acumulados demostrando la optimizacion del presupuesto.
+The script will evaluate a series of predefined queries (code, simple conversational questions, mathematical formulas) and print to the console the model selected for each, the routing justification, and a cumulative cost comparison demonstrating budget optimization.
