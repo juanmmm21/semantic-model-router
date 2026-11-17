@@ -86,6 +86,28 @@ This router integrates into the infrastructure as follows:
 *   `test_router.py`: Unit tests validating complexity classification (low, medium, high), Jaccard similarity calculation, and regex exclusions.
 *   `example.py`: Interactive demonstration of routing simulation over multiple test prompts, calculating and displaying the exact projected financial savings percentage.
 
+## Using it as a package
+
+Since `0.1.0` the code lives in the `semantic_model_router` package and the repository is
+pip-installable, so other projects can depend on it instead of copying files
+or editing `sys.path`:
+
+```bash
+pip install "semantic-model-router @ git+https://github.com/juanmmm21/semantic-model-router.git@v0.1.0"
+```
+
+```python
+from semantic_model_router import SemanticModelRouter, ModelProfile
+```
+
+The old top-level modules are kept as thin re-exports, so scripts that add
+this folder to `sys.path` keep working. This component imports no other
+ai-core component: they are combined in the `aicore` SDK of
+[ai-core-infra-hub](https://github.com/juanmmm21/ai-core-infra-hub), which
+passes collaborators (vector stores, encoders, tokenizers) in by injection.
+
+Development: `pip install -e ".[dev]"`, then `pytest` and `ruff check .`.
+
 ## Installation and Execution
 
 ### 1. Set Up the Environment and Install Dependencies

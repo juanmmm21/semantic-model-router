@@ -1,5 +1,5 @@
 import unittest
-from router import SemanticModelRouter
+from semantic_model_router.router import SemanticModelRouter
 
 
 class TestSemanticModelRouter(unittest.TestCase):
