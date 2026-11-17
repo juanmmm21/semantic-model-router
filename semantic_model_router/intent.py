@@ -96,7 +96,12 @@ class _CSR:
 
 
 class IntentClassifier:
-    """Softmax regression; ``labels`` fixes the class order of ``predict_proba``."""
+    """Softmax regression; ``labels`` fixes the class order of ``predict_proba``.
+
+    ``epochs=20`` by default: on held-out *templates* (phrasings never seen in training) more
+    passes over the data memorize the training phrasings and generalize worse (measured on the
+    synthetic assistant-routing grammar of ai-core-infra-hub: macro-F1 0.87 at 20 epochs, 0.81
+    at 200)."""
 
     kind = KIND
 
@@ -111,7 +116,7 @@ class IntentClassifier:
         texts: Sequence[str],
         labels: Sequence[str],
         contexts: Optional[Sequence[Context]] = None,
-        epochs: int = 200,
+        epochs: int = 20,
         lr: float = 0.05,
         l2: float = 1e-4,
         balanced: bool = True,
