@@ -1,5 +1,3 @@
-import sys
-import os
 import re
 import logging
 from typing import Dict, List, Tuple, Optional
@@ -69,29 +67,6 @@ class SemanticModelRouter:
             re.IGNORECASE
         )
         
-        # Intentamos importar codificador de embeddings del modulo contrastive-embedding-trainer
-        self.embedding_encoder = None
-        self._init_sibling_embedding()
-
-    def _init_sibling_embedding(self) -> None:
-        """
-        Intenta importar dinamicamente el contrastive-embedding-trainer de la infraestructura.
-        """
-        sibling_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "contrastive-embedding-trainer")
-        )
-        if sibling_path not in sys.path:
-            sys.path.append(sibling_path)
-            
-        try:
-            # Intentamos importar la clase codificadora si existe en el sibling
-            # Dado que el sibling podria no estar cargado o requerir weights locales,
-            # capturamos cualquier excepcion de importacion de forma limpia.
-            from model import BiEncoderModel
-            # Si se pudo importar, guardamos una referencia para posterior uso semantico real
-            logger.info("Modulo contrastive-embedding-trainer cargado con exito en SemanticModelRouter.")
-        except ImportError:
-            logger.info("contrastive-embedding-trainer no disponible. Usando similitud de n-gramas offline.")
 
     def _calculate_ngram_similarity(self, text1: str, text2: str) -> float:
         """
