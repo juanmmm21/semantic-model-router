@@ -39,6 +39,14 @@ class TestIntentClassifier(unittest.TestCase):
         self.assertEqual(clf.predict("sigue", ["active_project"])[0], "project")
         self.assertEqual(clf.predict("sigue", ["recent_general"])[0], "general")
 
+    def test_early_stopping_records_the_best_epoch(self) -> None:
+        texts, labels = data()
+        clf = IntentClassifier(["project", "general", "trivial"]).fit(
+            texts, labels, epochs=40, validation=(texts[::2], labels[::2], None), check_every=5
+        )
+        self.assertIn(clf.meta["best_epoch"], range(5, 41, 5))
+        self.assertGreater(clf.meta["val_accuracy"], 0.8)
+
     def test_features_include_context_tokens(self) -> None:
         a, _ = features("sigue")
         b, _ = features("sigue", ["active_project"])

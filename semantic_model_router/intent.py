@@ -120,7 +120,12 @@ class IntentClassifier:
         lr: float = 0.05,
         l2: float = 1e-4,
         balanced: bool = True,
+        validation: Optional[Tuple[Sequence[str], Sequence[str], Optional[Sequence[Context]]]] = None,
+        check_every: int = 5,
     ) -> "IntentClassifier":
+        """Train for ``epochs`` steps. With ``validation=(texts, labels, contexts)`` accuracy on it
+        is checked every ``check_every`` steps and the best weights are kept (early stopping on
+        data that is neither training nor final evaluation)."""
         contexts = contexts or [None] * len(texts)
         X = _CSR([features(t, c) for t, c in zip(texts, contexts)])
         index = {label: i for i, label in enumerate(self.labels)}
@@ -133,6 +138,7 @@ class IntentClassifier:
         mb, vb = np.zeros_like(self.b), np.zeros_like(self.b)
         b1, b2, eps = 0.9, 0.999, 1e-8
         present = np.unique(X.indices)
+        best_acc, best = -1.0, None
         for t in range(1, epochs + 1):
             logits = X.dot(self.W) + self.b
             logits -= logits.max(axis=1, keepdims=True)
@@ -152,6 +158,15 @@ class IntentClassifier:
             c1, c2 = 1 - b1**t, 1 - b2**t
             self.W[present] -= lr * (mW[present] / c1) / (np.sqrt(vW[present] / c2) + eps)
             self.b -= lr * (mb / c1) / (np.sqrt(vb / c2) + eps)
+            if validation is not None and (t % check_every == 0 or t == epochs):
+                v_texts, v_labels, v_contexts = validation
+                pred = self.predict_proba(v_texts, v_contexts).argmax(axis=1)
+                acc = float(np.mean([self.labels[int(i)] == g for i, g in zip(pred, v_labels)]))
+                if acc > best_acc:
+                    best_acc, best = acc, (self.W[present].copy(), self.b.copy(), t)
+        if best is not None:
+            self.W[present], self.b = best[0], best[1]
+            self.meta.update({"best_epoch": best[2], "val_accuracy": best_acc})
         self.meta.update({"train_examples": len(y), "epochs": epochs})
         return self
 
