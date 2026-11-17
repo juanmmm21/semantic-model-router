@@ -86,6 +86,33 @@ This router integrates into the infrastructure as follows:
 *   `test_router.py`: Unit tests validating complexity classification (low, medium, high), Jaccard similarity calculation, and regex exclusions.
 *   `example.py`: Interactive demonstration of routing simulation over multiple test prompts, calculating and displaying the exact projected financial savings percentage.
 
+## Learned intent routing with champion/challenger promotion
+
+Since `0.1.0` the router can also classify a message into *your* routes (for example
+`project` / `general` / `trivial`) with a learned model instead of keyword rules:
+
+```python
+from semantic_model_router import IntentClassifier, ModelRegistry, ChampionChallengerRouter
+
+clf = IntentClassifier(["project", "general", "trivial"]).fit(texts, labels, contexts)
+clf.predict("sigue", ["active_project"])          # ('project', 0.97) — context changes the route
+```
+
+*   **`IntentClassifier`** (`intent.py`): multinomial logistic regression over hashed word
+    uni/bigrams and character 3–5-grams, plus caller-supplied *context tokens*
+    (`active_project`, `recent_general`, …) and their crossings with the first words. Pure
+    NumPy, about a millisecond per message on a CPU, trains in seconds.
+*   **`ModelRegistry`** (`registry.py`): versions under `models/vN/`, a `champion.json`
+    pointer and an append-only `promotions.jsonl`. A new version is a *challenger*;
+    `promote_if_better` (or `apply`, with scorecards computed by an external evaluation harness)
+    promotes it **only if it wins**: macro-F1 above the champion's by more than `min_gain`, no
+    class losing more than `max_class_drop` of recall, p95 latency under `max_latency_ms`. Every
+    decision, promoted or not, is recorded with both scorecards.
+*   **`ChampionChallengerRouter`**: routes with the champion and can run a challenger in shadow,
+    counting agreement on live traffic before any promotion.
+*   Other model kinds (a LoRA-tuned transformer, say) plug in with `register_kind(kind, loader)`;
+    this package never imports them.
+
 ## Using it as a package
 
 Since `0.1.0` the code lives in the `semantic_model_router` package and the repository is
