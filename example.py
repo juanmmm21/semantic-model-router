@@ -1,4 +1,3 @@
-import time
 from router import SemanticModelRouter
 
 

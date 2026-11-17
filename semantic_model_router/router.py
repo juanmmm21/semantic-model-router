@@ -1,6 +1,6 @@
 import re
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import List, Tuple, Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
